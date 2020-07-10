@@ -3,11 +3,35 @@ import styled from "styled-components"
 import { observer } from "mobx-react"
 import { types, applyPatch, getSnapshot } from "mobx-state-tree"
 
+const PlaceCircle = styled.circle`
+  &:hover {
+      stroke: blue;
+      stroke-width: 4px;
+  }
+`
+
 const Place = types.model({
     x: 0,
     y: 0,
     anchor: types.maybe(types.reference(types.late(() => Place))),
-})
+}).views(self => ({
+    get render() { return (
+        <PlaceCircle
+        key={self.$treenode.path}
+        cx={self.x}
+        cy={self.y}
+        r={10}
+        onClick={(e) => {
+            // debugger
+            e.stopPropagation()
+            applyPatch(model, {
+                op: "remove",
+                path: self.$treenode.path,
+            })
+        }}
+        />
+    )}
+}))
 
 const Model = types.model({
     places: types.array(Place),
@@ -61,22 +85,20 @@ const Appeal = observer(() => {
             }}
             onClick={() => {
                 applyPatch(model, {
-                    op: "replace",
-                    path: "/places",
-                    value: getSnapshot(model.places).concat(getSnapshot(model.cursor)),
+                    op: "add",
+                    path: "/places/-",
+                    value: getSnapshot(model.cursor),
                 })
             }}
         >
-            {model.places.map((place, index) => (
-                <circle key={index} cx={place.x} cy={place.y} r={10} />
-            ))}
+            {model.places.map((place) => place.render )}
 
             <circle
-            cx={model.cursor.x}
-            cy={model.cursor.y}
-            r={10}
-            stroke="red"
-            fill="none"
+                cx={model.cursor.x}
+                cy={model.cursor.y}
+                r={10}
+                stroke="red"
+                fill="none"
             />
             
 
