@@ -14,6 +14,7 @@ const Display = styled.div`
 display: grid;
 grid-template-columns: 25% 1fr;
 grid-template-rows: 4rem 1fr;
+grid-gap: 1rem;
 padding: 2rem;
 height: calc(100vh - 4rem);
 width: calc(100vw - 4rem);
@@ -26,7 +27,19 @@ const Area = styled.svg`
   width: 100%;
 `
 
-const Place = types.model({
+const Graph = styled.div`
+grid-area: 2 / 1;
+border: 1px solid blue;
+padding: 0.5rem;
+`
+
+const GraphNode = styled.div`
+&:nth-child(2n) {
+    background: lightgrey;
+}
+`
+
+const Place = types.model("Place", {
     x: 0,
     y: 0,
     anchor: types.maybe(types.reference(types.late(() => Place))),
@@ -46,20 +59,57 @@ const Place = types.model({
             })
         }}
         />
+    )},
+
+    get graph() { return (
+        <GraphNode key={self.$treenode.path}>
+            {self.$treenode.type.name}: ({Math.floor(self.x)},{Math.floor(self.y)})
+        </GraphNode>
     )}
 }))
 
+const Line = types.model("Line", {
+    begin: Place,
+    end: Place,
+
+    bulk: 2,
+}).views(self => ({
+    get render() { return (
+        <path
+            key={self.$treenode.path}
+            stroke="black"
+            strokeWidth={self.bulk}
+            d={`M ${self.begin.x} ${self.begin.y} L ${self.end.x} ${self.end.y}`}
+        />
+    )},
+
+    get graph() { return (
+        <GraphNode key={self.$treenode.path}>
+            {self.$treenode.type.name}: ({self.begin.x},{self.begin.y}) - ({self.end.x},{self.end.y})
+        </GraphNode>
+    )}
+}))
+
+const Node = types.union(
+    Line,
+    Place,
+)
+
 const Model = types.model({
-    places: types.array(Place),
     cursor: Place,
     screenCorner: Place,
+    nodes: types.array(Node),
 })
 
 const model = Model.create({
-    places: [],
     cursor: { x: 0, y: 0, },
     screenCorner: { x: window.innerWidth, y: innerHeight, },
+    nodes: [
+        { begin: { x: 20, y: 40, }, end: { x: 100, y: 100, }}
+    ],
 })
+
+window.model = model
 
 window.onresize = () => {
     applyPatch(model, {
@@ -79,6 +129,10 @@ const Appeal = observer(() => {
 
     return (
     <Display>
+        <Graph>
+            {model.nodes.map(node => ( node.graph ))}
+        </Graph>
+
         <Area
             ref={area}
         // style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
@@ -99,12 +153,12 @@ const Appeal = observer(() => {
             onClick={() => {
                 applyPatch(model, {
                     op: "add",
-                    path: "/places/-",
+                    path: "/nodes/-",
                     value: getSnapshot(model.cursor),
                 })
             }}
         >
-            {model.places.map((place) => place.render )}
+            {model.nodes.map((node) => node.render)}
 
             <circle
                 cx={model.cursor.x}
