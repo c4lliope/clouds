@@ -10,6 +10,22 @@ const PlaceCircle = styled.circle`
   }
 `
 
+const Display = styled.div`
+display: grid;
+grid-template-columns: 25% 1fr;
+grid-template-rows: 4rem 1fr;
+padding: 2rem;
+height: calc(100vh - 4rem);
+width: calc(100vw - 4rem);
+`
+
+const Area = styled.svg`
+  border: 1px solid black;
+  grid-area: 2 / 2;
+  height: 100%;
+  width: 100%;
+`
+
 const Place = types.model({
     x: 0,
     y: 0,
@@ -54,7 +70,7 @@ window.onresize = () => {
 }
 
 const Appeal = observer(() => {
-    var upload = useRef()
+    var area = useRef()
 
     var dx = 100
     var dy = 100
@@ -62,26 +78,23 @@ const Appeal = observer(() => {
     var size_y = 1000
 
     return (
-    <div>
-        <svg
+    <Display>
+        <Area
+            ref={area}
         // style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-            // height="100vh"
+            // height="100%"
             // width="100%"
-            height={`${model.screenCorner.y}`}
-            width={`${model.screenCorner.x}`}
-            viewBox={`0 0 ${model.screenCorner.x} ${model.screenCorner.y}`}
+            // viewBox={`0 0 ${model.screenCorner.x} ${model.screenCorner.y}`}
             onMouseMove={(e) => {
-                let svg = e.target
-                // debugger;
+                let boundary = area.current.getBoundingClientRect()
                 applyPatch(model, {
                     op: "replace",
                     path: "/cursor",
                     value: {
-                        x: e.clientX  || 0,
-                        y: e.clientY || 0,
+                        x: e.clientX - boundary.x || 0,
+                        y: e.clientY - boundary.y || 0,
                     }
                 })
-                // console.log(model.cursor.x, model.cursor.y)
             }}
             onClick={() => {
                 applyPatch(model, {
@@ -127,8 +140,8 @@ const Appeal = observer(() => {
                     and really big clouds help me cope.
                 </textPath>
             </text> */}
-        </svg>
-    </div>
+        </Area>
+    </Display>
     )
 })
 
