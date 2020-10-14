@@ -5,9 +5,11 @@ import { types, applyPatch, getSnapshot } from "mobx-state-tree"
 
 const PlaceCircle = styled.circle`
   &:hover {
-      stroke: blue;
+      stroke: grey;
       stroke-width: 4px;
   }
+
+  stroke: ${p => p.grabbed ? "blue" : "none"};
 `
 
 const Display = styled.div`
@@ -42,7 +44,7 @@ const GraphNode = styled.div`
 const Place = types.model("Place", {
     x: 0,
     y: 0,
-    anchor: types.maybe(types.reference(types.late(() => Place))),
+    key: types.identifier,
 }).views(self => ({
     get render() { return (
         <PlaceCircle
@@ -53,9 +55,15 @@ const Place = types.model("Place", {
         onClick={(e) => {
             // debugger
             e.stopPropagation()
+            // applyPatch(model, {
+            //     op: "remove",
+            //     path: self.$treenode.path,
+            // })
+            debugger
             applyPatch(model, {
-                op: "remove",
-                path: self.$treenode.path,
+                op: "add",
+                path: "/cursor/grabbed/-",
+                value: getSnapshot(self),
             })
         }}
         />
@@ -73,6 +81,7 @@ const Line = types.model("Line", {
     end: Place,
 
     bulk: 2,
+    key: types.identifier,
 }).views(self => ({
     get render() { return (
         <path
@@ -95,14 +104,29 @@ const Node = types.union(
     Place,
 )
 
+const Cursor = types.model("Cursor", {
+    place: Place,
+    grabbed: types.array(types.reference(Node)),
+}).views(self => ({
+    get render() { return (
+        <circle
+            cx={self.place.x}
+            cy={self.place.y}
+            r={10}
+            stroke="red"
+            fill="none"
+        />
+    )}
+}))
+
 const Model = types.model({
-    cursor: Place,
+    cursor: Cursor,
     screenCorner: Place,
     nodes: types.array(Node),
 })
 
 const model = Model.create({
-    cursor: { x: 0, y: 0, },
+    cursor: { place: { x: 0, y: 0, }, grabbed: [] },
     screenCorner: { x: window.innerWidth, y: innerHeight, },
     nodes: [
         { begin: { x: 20, y: 40, }, end: { x: 100, y: 100, }}
@@ -143,7 +167,7 @@ const Appeal = observer(() => {
                 let boundary = area.current.getBoundingClientRect()
                 applyPatch(model, {
                     op: "replace",
-                    path: "/cursor",
+                    path: "/cursor/place",
                     value: {
                         x: e.clientX - boundary.x || 0,
                         y: e.clientY - boundary.y || 0,
@@ -154,19 +178,12 @@ const Appeal = observer(() => {
                 applyPatch(model, {
                     op: "add",
                     path: "/nodes/-",
-                    value: getSnapshot(model.cursor),
+                    value: getSnapshot(model.cursor.place),
                 })
             }}
         >
             {model.nodes.map((node) => node.render)}
-
-            <circle
-                cx={model.cursor.x}
-                cy={model.cursor.y}
-                r={10}
-                stroke="red"
-                fill="none"
-            />
+            {model.cursor.render}
             
 
 
@@ -178,12 +195,12 @@ const Appeal = observer(() => {
               fill="none"
               id="line"
               d={`
-              M 100 ${size_y - dy}
-              L 100 ${2 * dy}
-              Q ${0 + dx} ${0 + dy} ${2 * dx} ${0 + dy}
-              L 800 100
-              Q 900 100 900 200
-              L 900 900
+              M ${dx} ${size_y - dy}
+              L ${dx} ${2 * dy}
+              Q ${dx} ${dy} ${2 * dx} ${dy}
+              L ${size_x - 2 * dx} ${dy}
+              Q ${size_x - dx} ${dy} ${size_x - dx} ${2 * dy}
+              L ${size_x - dx} ${size_y - dy}
               `}
               />
             <text width="1000" fontSize="2.4em">
